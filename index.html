@@ -522,4 +522,188 @@ const DIMS = {
 const QUESTIONS = [
   { dim:'professional', text:'How many years of career experience do you have in a leadership or professional role?',
     opts:[['Less than 5 years',2],['5–12 years',5],['13–20 years',7],['More than 20 years',10]] },
-  { dim:'prof
+  { dim:'professional', text:'How often do you draw on lessons from your career when guiding your kids through challenges?',
+    opts:[['Rarely — I keep work and family separate',2],['Occasionally when it feels relevant',5],['Regularly — my career is a resource I use',8],["It's one of my main fatherhood tools",10]] },
+  { dim:'professional', text:'How broad is your professional experience across industries, functions, or geographies?',
+    opts:[['Fairly narrow — one industry or role',3],['Some variety across a few areas',6],['Wide range across industries or functions',8],['Extensive — platform shifts, geographies, disciplines',10]] },
+  { dim:'presence', text:"When you're at your kids' games or events, how would you honestly describe your attention?",
+    opts:[['Mostly on my phone or laptop',1],['Half in, half out',4],['Mostly present with occasional distractions',7],['Fully locked in — work can wait',10]] },
+  { dim:'presence', text:'After a tough game or performance, how quickly do you bring up analysis or feedback?',
+    opts:[['Right away in the car — I want to help',3],['Same day, usually',6],['I wait for the dust to settle first',8],["I let them lead — I follow their cue",10]] },
+  { dim:'presence', text:"Roughly what percentage of your kids' games or major events do you attend?",
+    opts:[['Less than 40%',4],['40–65%',6],['65–85%',8],['More than 85%',9]] },
+  { dim:'coaching', text:"After a hard loss or failure, what's your typical first move?",
+    opts:[['Point out what went wrong',2],['Stay quiet and give them space',6],['Ask what they felt good about first',9],["Send a text saying I'm proud of them before anything else",10]] },
+  { dim:'coaching', text:"How often do you explicitly tell your kids their worth isn't tied to their performance?",
+    opts:[['I show it more than I say it',4],['Occasionally when they seem down',6],['Regularly — I say it out loud',9],["It's a standing message in our house",10]] },
+  { dim:'coaching', text:'How would you rate your ability to stay emotionally regulated when your kid is struggling?',
+    opts:[['Hard — I feel it in my body too',3],['I manage but it takes effort',6],['Pretty steady — I can be the calm',8],['Consistently steady regardless of the stakes',10]] },
+  { dim:'longGame', text:"Can you name three to five values you're deliberately trying to pass on to your kids?",
+    opts:[['Not off the top of my head',2],['Roughly — I know them generally',5],["Yes, I've thought about this seriously",8],["Yes, and I've explicitly talked about them with my kids",10]] },
+  { dim:'longGame', text:'How often do you talk with your kids about your own career — failures, pivots, hard decisions?',
+    opts:[['Rarely — I keep work life separate',2],['Occasionally when it comes up',5],['Regularly — my career is curriculum',8],["It's a consistent thread in how we talk",10]] },
+  { dim:'longGame', text:'When you think about your value as a father, what time horizon do you default to?',
+    opts:[['This season or this year',3],['The next few years',5],["When they're in their twenties",8],["When they're in their thirties and beyond",10]] },
+  { dim:'selfAware', text:"How comfortable are you acknowledging what you can't provide and letting others fill those lanes?",
+    opts:[['Uncomfortable — I feel like I should do it all',2],['I do it but feel some guilt',5],['Comfortable — I know my limits',8],['Very comfortable — I actively recruit for my gaps',10]] },
+  { dim:'selfAware', text:'How would you describe your attitude toward not being a sports dad?',
+    opts:[['Still working on accepting it',3],['Mostly fine but occasional doubt',6],['Accepted — I know my lane',8],["Genuinely own it — it's an advantage",10]] },
+  { dim:'selfAware', text:"Do you ask for honest feedback from your spouse or kids about how you're doing as a dad?",
+    opts:[['Not really',2],['Occasionally',5],['Sometimes — when prompted',7],['Yes, I have a feedback loop',10]] },
+];
+const BANDS = [
+  { min:85, name:'Compounding', desc:"You're not behind. You're early. You've figured out that your lane gets more valuable every year — and you're investing accordingly. The most important innings haven't been played yet, and you're going to be exactly the right dad for the moment." },
+  { min:70, name:'Building equity', desc:"The deposits are accumulating. You're thinking in the right direction — long game, presence quality, emotional coaching. A few targeted adjustments and you'll be compounding in no time." },
+  { min:55, name:'In the game', desc:"You're showing up and you care — that's the foundation. There are specific areas where you're leaving value on the table. Focus your energy there and watch the returns improve." },
+  { min:40, name:'Briefcase on the bench', desc:"You're present in body but not yet fully engaged in spirit. The gap between here and 'compounding' is mostly mindset and a few deliberate habits. You picked up this book — that's the first deposit." },
+  { min:0,  name:'Still in the parking lot', desc:"We need to talk. But the fact that you're here means something. Most dads never ask these questions at all. Start with Chapter 1 and go from there." },
+];
+const CHAPTER_RECS = {
+  professional: { title:'Chapter 6: Career Day, Every Day', desc:'How to use your professional life as curriculum for your kids.' },
+  presence:     { title:'Chapters 1 & 2: Briefcase in the Bleachers / The Non-Athlete in the Room', desc:'Owning your lane and showing up with intention rather than guilt.' },
+  coaching:     { title:'Chapter 5: Coaching Confidence, Not Mechanics', desc:'Building confidence, emotional regulation, and the inner game.' },
+  longGame:     { title:'Chapters 4 & 9: Legacy Over Leverage / Dad Capital', desc:'Why your value compounds — and how to make intentional deposits.' },
+  selfAware:    { title:'Chapters 3 & 7: Outsourcing Curveballs / RBI', desc:'Knowing your lane, letting others fill the gaps, and reframing your metrics.' },
+};
+let answers = {}, current = 0, submittedEmail = false;
+function calcScores() {
+  const dimRaw = {}, dimCount = {};
+  Object.keys(DIMS).forEach(d => { dimRaw[d]=0; dimCount[d]=0; });
+  QUESTIONS.forEach((q,i) => { if (answers[i]!==undefined) { dimRaw[q.dim]+=answers[i]; dimCount[q.dim]++; } });
+  const dimPct = {};
+  Object.keys(DIMS).forEach(d => { dimPct[d] = dimCount[d]>0 ? Math.round((dimRaw[d]/(dimCount[d]*10))*100) : 0; });
+  let bdi = 0;
+  Object.keys(DIMS).forEach(d => { bdi += dimPct[d]*DIMS[d].weight; });
+  const presenceQ = dimPct['presence'];
+  const attendRaw = answers[5]!==undefined ? answers[5] : 6;
+  const dlr = ((presenceQ)/((attendRaw/10)*100)).toFixed(2);
+  return { dimPct, bdi: Math.round(bdi), dlr };
+}
+function submitToSheet(email) {
+  const { dimPct, bdi, dlr } = calcScores();
+  const band = BANDS.find(b => bdi >= b.min);
+  fetch(SHEET_URL, {
+    method: 'POST', mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bdi, band: band ? band.name : 'Unknown', dlr, dims: dimPct, email: email||'' }),
+  }).catch(()=>{});
+}
+function render() {
+  document.getElementById('app').innerHTML = '';
+  if (current < QUESTIONS.length) renderQuestion(); else renderResult();
+}
+function renderQuestion() {
+  const q = QUESTIONS[current];
+  const pct = Math.round((current/QUESTIONS.length)*100);
+  const isLast = current === QUESTIONS.length-1;
+  document.getElementById('app').innerHTML = `
+    <div class="progress-wrap">
+      <div class="progress-meta"><span>${DIMS[q.dim].label}</span><span>${current+1} of ${QUESTIONS.length}</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>
+    <div class="q-card fade-in">
+      <div class="dim-badge">${DIMS[q.dim].label}</div>
+      <div class="q-text">${q.text}</div>
+      <div class="q-options" id="opts"></div>
+    </div>
+    <button class="btn-next" id="next-btn" ${answers[current]===undefined?'disabled':''} onclick="advance()">
+      ${isLast ? 'See my results' : 'Next question'} →
+    </button>`;
+  const opts = document.getElementById('opts');
+  q.opts.forEach(([label, val]) => {
+    const btn = document.createElement('button');
+    btn.className = 'q-opt'+(answers[current]===val?' selected':'');
+    btn.innerHTML = `<span class="q-opt-dot"></span>${label}`;
+    btn.addEventListener('click', () => {
+      answers[current] = val;
+      document.querySelectorAll('.q-opt').forEach(o => o.classList.remove('selected'));
+      btn.classList.add('selected');
+      const nb = document.getElementById('next-btn');
+      nb.disabled = false;
+      nb.textContent = (current===QUESTIONS.length-1?'See my results':'Next question')+' →';
+    });
+    opts.appendChild(btn);
+  });
+}
+function advance() {
+  if (answers[current]===undefined) return;
+  current++; window.scrollTo({top:0,behavior:'smooth'}); render();
+}
+function renderResult() {
+  const {dimPct, bdi, dlr} = calcScores();
+  const band = BANDS.find(b => bdi >= b.min);
+  const sorted = Object.keys(DIMS).sort((a,b) => dimPct[a]-dimPct[b]);
+  const weakTwo = sorted.slice(0,2);
+  const dlrNote = parseFloat(dlr)>=1.0
+    ? 'Your presence quality outperforms your attendance rate. Your time is intentional.'
+    : "You're showing up more than you're engaging. Quality over quantity is the fix.";
+  if (!submittedEmail) { submitToSheet(''); submittedEmail = true; }
+  document.getElementById('app').innerHTML = `
+    <div class="result-hero fade-in">
+      <div class="score-display">${bdi}</div>
+      <div class="score-sub">Business Dad Index</div>
+      <div class="gold-rule" style="margin-bottom:1.25rem"></div>
+      <div class="band-title">${band.name}</div>
+      <div class="band-desc">${band.desc}</div>
+    </div>
+    <div class="dlr-row">
+      <div class="dlr-box"><span class="dlr-num">${dlr}</span><span class="dlr-lbl">Dad leverage ratio</span></div>
+      <div class="dlr-note"><p>${dlrNote}</p></div>
+    </div>
+    <div class="dims-card">
+      <div class="card-head">Your five dimensions</div>
+      ${Object.keys(DIMS).map(d=>`
+        <div class="dim-row">
+          <div class="dim-name">${DIMS[d].label}</div>
+          <div class="dim-track"><div class="dim-fill" style="width:${dimPct[d]}%"></div></div>
+          <div class="dim-score">${dimPct[d]}</div>
+        </div>`).join('')}
+    </div>
+    <div class="recs-card">
+      <div class="card-head">Chapters to read first</div>
+      ${weakTwo.map(d=>`
+        <div class="rec-item">
+          <div class="rec-title">${CHAPTER_RECS[d].title}</div>
+          <div class="rec-desc">${CHAPTER_RECS[d].desc}</div>
+        </div>`).join('')}
+    </div>
+    <div class="email-card">
+      <div class="email-title">Get your results + future updates</div>
+      <div class="email-sub">Optional — leave your email and I'll send you the second edition data report when it's ready, plus insights based on how Business Dads are scoring across all five dimensions.</div>
+      <div id="email-area">
+        <div class="email-row">
+          <input class="email-input" type="email" id="email-input" placeholder="your@email.com">
+          <button class="btn-email" onclick="handleEmail()">Send me updates</button>
+        </div>
+        <button class="email-skip" onclick="showCTA()">No thanks, skip this</button>
+      </div>
+    </div>
+    <div id="cta-area" style="display:none">
+      <div class="cta-card">
+        <div class="cta-title">Briefcase in the Bleachers</div>
+        <div class="cta-sub">The book for every dad who leads at work and shows up at home.</div>
+        <a class="btn-amazon" href="https://a.co/d/06G5i5hi" target="_blank">Get it on Amazon →</a>
+      </div>
+      <button class="btn-restart" onclick="restart()">← Take the quiz again</button>
+    </div>`;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function handleEmail() {
+  const input = document.getElementById('email-input');
+  const email = input ? input.value.trim() : '';
+  if (!email || !email.includes('@')) { input.style.borderColor='#E24B4A'; input.placeholder='Please enter a valid email'; return; }
+  submitToSheet(email);
+  document.getElementById('email-area').innerHTML = `<div class="email-success">✓ &nbsp;You're in. I'll be in touch when the second edition data drops.</div>`;
+  setTimeout(showCTA, 1200);
+}
+function showCTA() {
+  const cta = document.getElementById('cta-area');
+  const ec = document.querySelector('.email-card');
+  if (ec) ec.style.display='none';
+  if (cta) { cta.style.display='block'; cta.classList.add('fade-in'); }
+}
+function restart() { answers={}; current=0; submittedEmail=false; window.scrollTo({top:0,behavior:'smooth'}); render(); }
+render();
+</script>
+</body>
+</html>
