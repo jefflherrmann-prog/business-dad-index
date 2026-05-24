@@ -1,76 +1,525 @@
-// ─────────────────────────────────────────────────────────────
-// BUSINESS DAD INDEX — Google Apps Script Data Collector
-// Paste this entire file into your Apps Script editor
-// ─────────────────────────────────────────────────────────────
-
-const SHEET_NAME = 'BDI Responses';
-
-function doPost(e) {
-  try {
-    const data = JSON.parse(e.postData.contents);
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName(SHEET_NAME);
-
-    // Create sheet and headers if it doesn't exist
-    if (!sheet) {
-      sheet = ss.insertSheet(SHEET_NAME);
-      sheet.appendRow([
-        'Timestamp',
-        'BDI Score',
-        'Band',
-        'Dad Leverage Ratio',
-        'Professional Depth',
-        'Presence Quality',
-        'Emotional Coaching',
-        'Long-Game Thinking',
-        'Self-Awareness',
-        'Email (optional)',
-      ]);
-
-      // Format header row
-      const header = sheet.getRange(1, 1, 1, 10);
-      header.setBackground('#0C2340');
-      header.setFontColor('#C9A84C');
-      header.setFontWeight('bold');
-      sheet.setFrozenRows(1);
-
-      // Set column widths
-      sheet.setColumnWidth(1, 160); // Timestamp
-      sheet.setColumnWidth(2, 90);  // BDI
-      sheet.setColumnWidth(3, 160); // Band
-      sheet.setColumnWidth(4, 130); // DLR
-      sheet.setColumnWidths(5, 5, 130); // 5 dimensions
-      sheet.setColumnWidth(10, 200); // Email
-    }
-
-    // Append the new response row
-    sheet.appendRow([
-      new Date(),
-      data.bdi,
-      data.band,
-      data.dlr,
-      data.dims.professional,
-      data.dims.presence,
-      data.dims.coaching,
-      data.dims.longGame,
-      data.dims.selfAware,
-      data.email || '',
-    ]);
-
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: 'ok' }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch(err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: 'error', message: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Business Dad Index — Briefcase in the Bleachers</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0C2340;
+  --navy-mid: #0A1E35;
+  --navy-light: #1A3A5C;
+  --gold: #C9A84C;
+  --gold-light: #E8C96A;
+  --steel: #8FA8C0;
+  --light: #B8CDD8;
+  --white: #F5F0E8;
+  --off: #E8E0D0;
+  --success: #2A7A4A;
 }
-
-// Allow CORS preflight
-function doGet(e) {
-  return ContentService
-    .createTextOutput(JSON.stringify({ status: 'ready' }))
-    .setMimeType(ContentService.MimeType.JSON);
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--navy);
+  color: var(--white);
+  font-family: 'Libre Baskerville', Georgia, serif;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
+.site-header {
+  border-bottom: 1px solid rgba(201,168,76,0.3);
+  padding: 1.25rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: var(--navy);
+  z-index: 100;
+}
+.site-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.site-header a {
+  font-size: 13px;
+  color: var(--steel);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+  transition: color 0.2s;
+}
+.site-header a:hover { color: var(--gold); }
+.hero {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 5rem 2rem 3rem;
+  text-align: center;
+}
+.hero-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 1.5rem;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 0.1s forwards;
+}
+.hero-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(36px, 6vw, 64px);
+  font-weight: 900;
+  line-height: 1.05;
+  color: var(--white);
+  margin-bottom: 1rem;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 0.2s forwards;
+}
+.hero-title span { color: var(--gold); }
+.hero-sub {
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--light);
+  max-width: 540px;
+  margin: 0 auto 2rem;
+  font-style: italic;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 0.3s forwards;
+}
+.gold-rule {
+  width: 80px;
+  height: 2px;
+  background: var(--gold);
+  margin: 0 auto 2rem;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 0.35s forwards;
+}
+.hero-stats {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  margin-bottom: 3rem;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 0.4s forwards;
+}
+.stat-item { text-align: center; }
+.stat-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--gold);
+  display: block;
+}
+.stat-lbl {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--steel);
+  margin-top: 4px;
+  display: block;
+}
+.quiz-container {
+  max-width: 680px;
+  margin: 0 auto 5rem;
+  padding: 0 1.5rem;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 0.5s forwards;
+}
+.progress-wrap { margin-bottom: 1.5rem; }
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--steel);
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+.progress-track {
+  height: 3px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.q-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 1.25rem;
+  transition: border-color 0.3s;
+}
+.q-card:hover { border-color: rgba(201,168,76,0.35); }
+.dim-badge {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gold);
+  border: 1px solid rgba(201,168,76,0.4);
+  border-radius: 20px;
+  padding: 3px 12px;
+  margin-bottom: 1rem;
+}
+.q-text {
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--white);
+  margin-bottom: 1.5rem;
+  font-weight: 400;
+}
+.q-options { display: flex; flex-direction: column; gap: 10px; }
+.q-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--light);
+  background: transparent;
+  text-align: left;
+  width: 100%;
+  font-family: 'Libre Baskerville', serif;
+}
+.q-opt:hover {
+  border-color: rgba(201,168,76,0.4);
+  background: rgba(201,168,76,0.06);
+  color: var(--white);
+}
+.q-opt.selected {
+  border-color: var(--gold);
+  background: rgba(201,168,76,0.12);
+  color: var(--white);
+}
+.q-opt-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.3);
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.q-opt.selected .q-opt-dot { border-color: var(--gold); background: var(--gold); }
+.q-opt.selected .q-opt-dot::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--navy);
+}
+.btn-next {
+  width: 100%;
+  padding: 16px;
+  background: var(--gold);
+  color: var(--navy);
+  border: none;
+  border-radius: 8px;
+  font-family: 'Playfair Display', serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 0.5rem;
+}
+.btn-next:hover { background: var(--gold-light); transform: translateY(-1px); }
+.btn-next:active { transform: translateY(0); }
+.btn-next:disabled { opacity: 0.3; cursor: default; transform: none; }
+.result-hero {
+  text-align: center;
+  padding: 2.5rem 2rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+}
+.score-display {
+  font-family: 'Playfair Display', serif;
+  font-size: 88px;
+  font-weight: 900;
+  color: var(--gold);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.score-sub {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--steel);
+  margin-bottom: 1.5rem;
+}
+.band-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 0.75rem;
+}
+.band-desc {
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--light);
+  font-style: italic;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.dlr-row { display: flex; gap: 12px; margin-bottom: 1.25rem; }
+.dlr-box {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 10px;
+  padding: 1.25rem;
+  text-align: center;
+}
+.dlr-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--gold);
+  display: block;
+}
+.dlr-lbl {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--steel);
+  margin-top: 6px;
+  display: block;
+}
+.dlr-note {
+  flex: 2;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+}
+.dlr-note p { font-size: 13px; line-height: 1.65; color: var(--light); font-style: italic; }
+.dims-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.card-head {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 1.25rem;
+}
+.dim-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.dim-row:last-child { border-bottom: none; }
+.dim-name { font-size: 13px; color: var(--light); width: 170px; flex-shrink: 0; }
+.dim-track { flex: 1; height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+.dim-fill { height: 100%; background: var(--gold); border-radius: 3px; transition: width 1s ease; }
+.dim-score { font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; color: var(--gold); width: 30px; text-align: right; }
+.recs-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(201,168,76,0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.rec-item { border-left: 2px solid var(--gold); padding: 0.75rem 0 0.75rem 1rem; margin-bottom: 0.75rem; }
+.rec-item:last-child { margin-bottom: 0; }
+.rec-title { font-size: 14px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
+.rec-desc { font-size: 13px; color: var(--steel); line-height: 1.5; }
+.email-card {
+  background: rgba(201,168,76,0.08);
+  border: 1px solid rgba(201,168,76,0.35);
+  border-radius: 12px;
+  padding: 1.75rem;
+  margin-bottom: 1.25rem;
+}
+.email-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 0.4rem;
+}
+.email-sub {
+  font-size: 13px;
+  color: var(--light);
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
+  font-style: italic;
+}
+.email-row { display: flex; gap: 10px; }
+.email-input {
+  flex: 1;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  color: var(--white);
+  font-family: 'Libre Baskerville', serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.email-input::placeholder { color: rgba(255,255,255,0.3); }
+.email-input:focus { border-color: var(--gold); }
+.btn-email {
+  padding: 12px 20px;
+  background: var(--gold);
+  color: var(--navy);
+  border: none;
+  border-radius: 8px;
+  font-family: 'Playfair Display', serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.btn-email:hover { background: var(--gold-light); }
+.email-skip {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--steel);
+  text-align: center;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: none;
+  width: 100%;
+  font-family: 'Libre Baskerville', serif;
+}
+.email-skip:hover { color: var(--light); }
+.email-success {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #6FCF97;
+  padding: 10px 0;
+}
+.cta-card {
+  background: linear-gradient(135deg, rgba(201,168,76,0.15), rgba(201,168,76,0.05));
+  border: 1px solid rgba(201,168,76,0.4);
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+.cta-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--white); margin-bottom: 0.5rem; }
+.cta-sub { font-size: 14px; color: var(--light); margin-bottom: 1.25rem; font-style: italic; }
+.btn-amazon {
+  display: inline-block;
+  padding: 14px 32px;
+  background: var(--gold);
+  color: var(--navy);
+  text-decoration: none;
+  border-radius: 8px;
+  font-family: 'Playfair Display', serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: all 0.2s;
+}
+.btn-amazon:hover { background: var(--gold-light); transform: translateY(-1px); }
+.btn-restart {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  color: var(--steel);
+  font-family: 'Libre Baskerville', serif;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 0.75rem;
+  transition: all 0.2s;
+}
+.btn-restart:hover { border-color: rgba(255,255,255,0.3); color: var(--white); }
+footer {
+  text-align: center;
+  padding: 2rem;
+  border-top: 1px solid rgba(201,168,76,0.2);
+  font-size: 12px;
+  color: var(--steel);
+  letter-spacing: 0.06em;
+}
+footer a { color: var(--gold); text-decoration: none; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeUp 0.5s ease forwards; }
+@media (max-width: 520px) {
+  .hero-stats { gap: 1.5rem; }
+  .dlr-row { flex-direction: column; }
+  .dim-name { width: 130px; }
+  .score-display { font-size: 64px; }
+  .email-row { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="site-logo">Briefcase in the Bleachers</div>
+  <a href="https://a.co/d/06G5i5hi" target="_blank">Get the book →</a>
+</header>
+<div class="hero">
+  <p class="hero-eyebrow">Take the quiz</p>
+  <h1 class="hero-title">The Business<br><span>Dad Index</span></h1>
+  <p class="hero-sub">A weighted scoring model to measure your Business Dad profile — across five dimensions that actually matter.</p>
+  <div class="gold-rule"></div>
+  <div class="hero-stats">
+    <div class="stat-item"><span class="stat-num">15</span><span class="stat-lbl">Questions</span></div>
+    <div class="stat-item"><span class="stat-num">5</span><span class="stat-lbl">Dimensions</span></div>
+    <div class="stat-item"><span class="stat-num">5</span><span class="stat-lbl">Score bands</span></div>
+  </div>
+</div>
+<div class="quiz-container">
+  <div id="app"></div>
+</div>
+<footer>
+  <p>From <em>Briefcase in the Bleachers</em> by <a href="https://a.co/d/06G5i5hi" target="_blank">Jeff Leo Herrmann</a></p>
+  <p style="margin-top:6px">Available on Amazon — Kindle &amp; Paperback</p>
+</footer>
+<script>
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxEoi526FMUtiE1PZw3D3hOjduNav4a6QN_C8sfSqpNNRylShXGlv9ZzKEbUivzk4zGVg/exec';
+const DIMS = {
+  professional: { label: 'Professional depth', weight: 0.20 },
+  presence:     { label: 'Presence quality',   weight: 0.25 },
+  coaching:     { label: 'Emotional coaching', weight: 0.25 },
+  longGame:     { label: 'Long-game thinking', weight: 0.20 },
+  selfAware:    { label: 'Self-awareness',      weight: 0.10 },
+};
+const QUESTIONS = [
+  { dim:'professional', text:'How many years of career experience do you have in a leadership or professional role?',
+    opts:[['Less than 5 years',2],['5–12 years',5],['13–20 years',7],['More than 20 years',10]] },
+  { dim:'prof
